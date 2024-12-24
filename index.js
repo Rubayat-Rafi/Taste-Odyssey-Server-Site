@@ -31,7 +31,7 @@ async function run() {
     // const bidsCollection = db.collection('bids')
 
 
-    // add all foods in database 
+    // post all foods in database 
     app.post('/add-food', async (req, res) => { 
       const food = req.body;
       const result = await foodsCollection.insertOne(food);
@@ -55,6 +55,14 @@ async function run() {
       const id = req.params.id;
       const query = {_id: new ObjectId(id)};
       const result = await foodsCollection.findOne(query);
+      res.send(result);
+    })
+
+    //get all food by using Email address
+    app.get('/all-foods/:email', async(req, res)=> {
+      const email = req.params.email;
+      const query = { 'buyer.email': email }
+      const result = await foodsCollection.find(query).toArray();
       res.send(result);
     })
 
