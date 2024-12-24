@@ -44,6 +44,12 @@ async function run() {
       res.send(result);
     })
 
+    // home page foods best selling
+    app.get('/best-selling', async(req, res) => {
+      const result = await foodsCollection.find().limit(6).toArray();
+      res.send(result);
+    })
+
 
 
 
