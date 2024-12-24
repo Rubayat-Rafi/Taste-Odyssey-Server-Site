@@ -30,10 +30,18 @@ async function run() {
     const foodsCollection = db.collection('foods')
     // const bidsCollection = db.collection('bids')
 
+
+    // add all foods in database 
     app.post('/add-food', async (req, res) => { 
       const food = req.body;
       const result = await foodsCollection.insertOne(food);
       res.json(result);
+    })
+
+    // get all foods from database
+    app.get('/all-foods', async(req, res) => {
+      const result = await foodsCollection.find().toArray();
+      res.send(result);
     })
 
 
