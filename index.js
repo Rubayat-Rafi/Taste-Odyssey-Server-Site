@@ -41,7 +41,11 @@ async function run() {
     // get all foods from database
     app.get('/all-foods', async(req, res) => {
       const filter = req.query.filter;
-      const query = {};
+      const search = req.query.search;
+      const query = {
+        food_name: { $regex: search, $options: 'i' }
+      };
+  
       if(filter) query.food_category = filter
       const result = await foodsCollection.find(query).toArray();
       res.send(result);
