@@ -121,6 +121,25 @@ async function run() {
       res.send(result);
     })
 
+    // delete order from database
+    app.delete('/delete-order/:id', async(req, res)=> {
+      const id = req.params.id;
+      const query = {_id: new ObjectId(id)};
+      const result = await ordersCollection.deleteOne(query);
+      res.send(result);
+    })
+
+    // upadet a food in database
+    app.put('/update-food/:id', async(req, res) => {
+      const id = req.params.id;
+      const food = req.body;
+      const query = {_id: new ObjectId(id)};
+      const update = {$set: food};
+      const result = await foodsCollection.updateOne(query, update);
+      res.send(result);
+    })
+      
+
 
 
 
