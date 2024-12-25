@@ -27,7 +27,7 @@ async function run() {
 
     const db = client.db('taste-odyssey-db')
     const foodsCollection = db.collection('foods')
-    // const bidsCollection = db.collection('bids')
+    const ordersCollection = db.collection('orders')
 
 
     // post all foods in database 
@@ -86,6 +86,14 @@ async function run() {
       if (filter) query.category = filter
       const count = await foodsCollection.estimatedDocumentCount(query);
       res.send({count})
+    })
+
+
+    // post order food  in database
+    app.post('/purchase', async(req, res)=> {
+      const order = req.body;
+      const result = await ordersCollection.insertOne(order);
+      res.send(result);
     })
 
 
