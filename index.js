@@ -93,6 +93,31 @@ async function run() {
     app.post('/purchase', async(req, res)=> {
       const order = req.body;
       const result = await ordersCollection.insertOne(order);
+
+      // update food quantity
+      const filter ={_id: new ObjectId(order.food_id)};
+      const update ={$inc: {quantity: -order.quantity, purchases: order.quantity}};
+      const updateFood = await foodsCollection.updateOne(filter, update)
+
+      res.send(result);
+    })
+
+    // get all orders from database with email
+    app.get('/my-orders/:email', async(req, res)=> {
+      const email = req.params.email;
+      console.log(email);
+      const query = {email};
+      const result = await ordersCollection.find(query).toArray();
+      res.send(result);
+    })
+
+
+    // delete posted food from database
+    app.delete('/delete/:id', async(req, res)=> {
+      const id = req.params.id;
+      console.log(id);
+      const query = {_id: new ObjectId(id)};
+      const result = await foodsCollection.deleteOne(query);
       res.send(result);
     })
 
