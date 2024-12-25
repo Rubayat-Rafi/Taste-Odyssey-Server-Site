@@ -25,7 +25,6 @@ const client = new MongoClient(uri, {
 async function run() {
   try {
 
-
     const db = client.db('taste-odyssey-db')
     const foodsCollection = db.collection('foods')
     // const bidsCollection = db.collection('bids')
@@ -40,14 +39,18 @@ async function run() {
 
     // get all foods from database
     app.get('/all-foods', async(req, res) => {
+      const size = parseInt(req.query.size);
+      const page = parseInt(req.query.page);
       const filter = req.query.filter;
       const search = req.query.search;
+      const sort = req.query.sort;
+      let options = {};
+      if(sort) options = {sort: {food_price: sort === 'asc' ? 1 : -1}}
       const query = {
         food_name: { $regex: search, $options: 'i' }
       };
-  
       if(filter) query.food_category = filter
-      const result = await foodsCollection.find(query).toArray();
+      const result = await foodsCollection.find(query, options).skip(page * size).limit(size).toArray();
       res.send(result);
     })
 
@@ -73,6 +76,17 @@ async function run() {
       res.send(result);
     })
 
+    //food count for pagination
+    app.get('/food-count', async(req, res)=> {
+      const filter = req.query.filter
+      const search = req.query.search
+      let query = {
+        job_title: { $regex: search, $options: 'i' },
+      }
+      if (filter) query.category = filter
+      const count = await foodsCollection.estimatedDocumentCount(query);
+      res.send({count})
+    })
 
 
 
