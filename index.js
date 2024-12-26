@@ -2,7 +2,7 @@ require("dotenv").config();
 const cors = require("cors");
 const express = require("express");
 const app = express();
-const port = process.env.PORT || 9000;
+const port = process.env.PORT || 7000;
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const jwt = require("jsonwebtoken");
 const cookieParser = require("cookie-parser");
@@ -31,9 +31,9 @@ const client = new MongoClient(uri, {
 
 // verify jwt token middleware
 const verifyToken = (req, res, next) => {
-console.log('hello');
+  console.log("hello");
   next();
-}
+};
 
 async function run() {
   try {
@@ -59,13 +59,15 @@ async function run() {
     });
 
     //logut || clear jwt token
-      app.get('logOut', (req, res)=> {
-        res.clearCookie('tokrn', {
+    app.get("/logOut", (req, res) => {
+      res
+        .clearCookie("token", {
           maxAge: 0,
           secure: process.env.NODE_ENV === "production",
           sameSite: process.env.NODE_ENV === "production" ? "none" : "strict",
-        }).send({success: true});
-      })
+        })
+        .send({ success: true });
+    });
 
     // post all foods in database
     app.post("/add-food", async (req, res) => {
@@ -108,7 +110,7 @@ async function run() {
       const result = await foodsCollection.findOne(query);
       res.send(result);
     });
- 
+
     //get all food by using Email address
     app.get("/all-foods/:email", verifyToken, async (req, res) => {
       const email = req.params.email;
@@ -124,6 +126,7 @@ async function run() {
       let query = {
         job_title: { $regex: search, $options: "i" },
       };
+
       if (filter) query.category = filter;
       const count = await foodsCollection.estimatedDocumentCount(query);
       res.send({ count });
