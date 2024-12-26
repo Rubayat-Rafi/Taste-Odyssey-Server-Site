@@ -31,7 +31,14 @@ const client = new MongoClient(uri, {
 
 // verify jwt token middleware
 const verifyToken = (req, res, next) => {
-  console.log("hello");
+  const token = req.cookies?.token;
+  if (!token) return res.status(401).send({ message: 'unauthorized access' })
+    jwt.verify(token, process.env.SECRET_KEY, (err, decoded) => {
+      if (err) {
+        return res.status(401).send({ message: 'unauthorized access' })
+      }
+      req.user = decoded
+    })
   next();
 };
 
@@ -48,7 +55,6 @@ async function run() {
       const token = jwt.sign(email, process.env.SECRET_KEY, {
         expiresIn: "1d",
       });
-      console.log(token);
       res
         .cookie("token", token, {
           httpOnly: true,
@@ -99,7 +105,8 @@ async function run() {
 
     // home page foods best selling
     app.get("/best-selling", async (req, res) => {
-      const result = await foodsCollection.find().limit(6).toArray();
+      const Dsc = {purchases: -1};
+      const result = await foodsCollection.find().sort(Dsc).limit(6).toArray();
       res.send(result);
     });
 
@@ -113,7 +120,12 @@ async function run() {
 
     //get all food by using Email address
     app.get("/all-foods/:email", verifyToken, async (req, res) => {
+      const decoded = req.user?.email;
       const email = req.params.email;
+
+      if (decoded !== email)
+        return res.status(401).send({ message: 'unauthorized access' })
+    
       const query = { "buyer.email": email };
       const result = await foodsCollection.find(query).toArray();
       res.send(result);
@@ -148,9 +160,11 @@ async function run() {
     });
 
     // get all orders from database with email
-    app.get("/my-orders/:email", async (req, res) => {
+    app.get("/my-orders/:email",verifyToken, async (req, res) => {
       const email = req.params.email;
-      console.log(email);
+      const decoded = req.user?.email;
+      if (decoded !== email)
+        return res.status(401).send({ message: 'unauthorized access' })
       const query = { email };
       const result = await ordersCollection.find(query).toArray();
       res.send(result);
