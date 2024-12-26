@@ -1,15 +1,22 @@
-require('dotenv').config();
-const cors = require('cors');
-const express = require('express');
+require("dotenv").config();
+const cors = require("cors");
+const express = require("express");
 const app = express();
-const port = process.env.PORT || 3000;
-const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
+const port = process.env.PORT || 9000;
+const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
+const jwt = require("jsonwebtoken");
+const cookieParser = require("cookie-parser");
 
-
-// middlewere
+// middleware
+app.use(cookieParser());
 app.use(express.json());
-app.use(cors());
-
+app.use(
+  cors({
+    origin: ["http://localhost:5174"],
+    credentials: true,
+    optionalSuccessStatus: 200,
+  })
+);
 
 const uri = `mongodb+srv://${process.env.USER_DB}:${process.env.USER_PASSWORD}@cluster0.c8olx.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
 
@@ -19,135 +26,167 @@ const client = new MongoClient(uri, {
     version: ServerApiVersion.v1,
     strict: true,
     deprecationErrors: true,
-  }
+  },
 });
+
+// verify jwt token middleware
+const verifyToken = (req, res, next) => {
+console.log('hello');
+  next();
+}
 
 async function run() {
   try {
+    const db = client.db("taste-odyssey-db");
+    const foodsCollection = db.collection("foods");
+    const ordersCollection = db.collection("orders");
 
-    const db = client.db('taste-odyssey-db')
-    const foodsCollection = db.collection('foods')
-    const ordersCollection = db.collection('orders')
+    //granaret jwt token
+    app.post("/jwt", async (req, res) => {
+      const email = req.body;
+      // create a token
+      const token = jwt.sign(email, process.env.SECRET_KEY, {
+        expiresIn: "1d",
+      });
+      console.log(token);
+      res
+        .cookie("token", token, {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === "production",
+          sameSite: process.env.NODE_ENV === "production" ? "none" : "strict",
+        })
+        .send({ success: true });
+    });
 
+    //logut || clear jwt token
+      app.get('logOut', (req, res)=> {
+        res.clearCookie('tokrn', {
+          maxAge: 0,
+          secure: process.env.NODE_ENV === "production",
+          sameSite: process.env.NODE_ENV === "production" ? "none" : "strict",
+        }).send({success: true});
+      })
 
-    // post all foods in database 
-    app.post('/add-food', async (req, res) => { 
+    // post all foods in database
+    app.post("/add-food", async (req, res) => {
       const food = req.body;
       const result = await foodsCollection.insertOne(food);
       res.json(result);
-    })
+    });
 
     // get all foods from database
-    app.get('/all-foods', async(req, res) => {
+    app.get("/all-foods", async (req, res) => {
       const size = parseInt(req.query.size);
       const page = parseInt(req.query.page);
       const filter = req.query.filter;
       const search = req.query.search;
       const sort = req.query.sort;
       let options = {};
-      if(sort) options = {sort: {food_price: sort === 'asc' ? 1 : -1}}
+      if (sort) options = { sort: { food_price: sort === "asc" ? 1 : -1 } };
       const query = {
-        food_name: { $regex: search, $options: 'i' }
+        food_name: { $regex: search, $options: "i" },
       };
-      if(filter) query.food_category = filter
-      const result = await foodsCollection.find(query, options).skip(page * size).limit(size).toArray();
+      if (filter) query.food_category = filter;
+      const result = await foodsCollection
+        .find(query, options)
+        .skip(page * size)
+        .limit(size)
+        .toArray();
       res.send(result);
-    })
+    });
 
     // home page foods best selling
-    app.get('/best-selling', async(req, res) => {
+    app.get("/best-selling", async (req, res) => {
       const result = await foodsCollection.find().limit(6).toArray();
       res.send(result);
-    })
+    });
 
     // get a single food by id
-    app.get('/food/:id', async(req, res)=> {
+    app.get("/food/:id", async (req, res) => {
       const id = req.params.id;
-      const query = {_id: new ObjectId(id)};
+      const query = { _id: new ObjectId(id) };
       const result = await foodsCollection.findOne(query);
       res.send(result);
-    })
-
+    });
+ 
     //get all food by using Email address
-    app.get('/all-foods/:email', async(req, res)=> {
+    app.get("/all-foods/:email", verifyToken, async (req, res) => {
       const email = req.params.email;
-      const query = { 'buyer.email': email }
+      const query = { "buyer.email": email };
       const result = await foodsCollection.find(query).toArray();
       res.send(result);
-    })
+    });
 
     //food count for pagination
-    app.get('/food-count', async(req, res)=> {
-      const filter = req.query.filter
-      const search = req.query.search
+    app.get("/food-count", async (req, res) => {
+      const filter = req.query.filter;
+      const search = req.query.search;
       let query = {
-        job_title: { $regex: search, $options: 'i' },
-      }
-      if (filter) query.category = filter
+        job_title: { $regex: search, $options: "i" },
+      };
+      if (filter) query.category = filter;
       const count = await foodsCollection.estimatedDocumentCount(query);
-      res.send({count})
-    })
-
+      res.send({ count });
+    });
 
     // post order food  in database
-    app.post('/purchase', async(req, res)=> {
+    app.post("/purchase", async (req, res) => {
       const order = req.body;
       const result = await ordersCollection.insertOne(order);
 
       // update food quantity
-      const filter ={_id: new ObjectId(order.food_id)};
-      const update ={$inc: {quantity: -order.quantity, purchases: order.quantity}};
-      const updateFood = await foodsCollection.updateOne(filter, update)
+      const filter = { _id: new ObjectId(order.food_id) };
+      const update = {
+        $inc: { quantity: -order.quantity, purchases: order.quantity },
+      };
+      const updateFood = await foodsCollection.updateOne(filter, update);
 
       res.send(result);
-    })
+    });
 
     // get all orders from database with email
-    app.get('/my-orders/:email', async(req, res)=> {
+    app.get("/my-orders/:email", async (req, res) => {
       const email = req.params.email;
       console.log(email);
-      const query = {email};
+      const query = { email };
       const result = await ordersCollection.find(query).toArray();
       res.send(result);
-    })
-
+    });
 
     // delete posted food from database
-    app.delete('/delete/:id', async(req, res)=> {
+    app.delete("/delete/:id", async (req, res) => {
       const id = req.params.id;
       console.log(id);
-      const query = {_id: new ObjectId(id)};
+      const query = { _id: new ObjectId(id) };
       const result = await foodsCollection.deleteOne(query);
       res.send(result);
-    })
+    });
 
     // delete order from database
-    app.delete('/delete-order/:id', async(req, res)=> {
+    app.delete("/delete-order/:id", async (req, res) => {
       const id = req.params.id;
-      const query = {_id: new ObjectId(id)};
+      const query = { _id: new ObjectId(id) };
       const result = await ordersCollection.deleteOne(query);
       res.send(result);
-    })
+    });
 
     // upadet a food in database
-    app.put('/update-food/:id', async(req, res) => {
+    app.put("/update-food/:id", async (req, res) => {
       const id = req.params.id;
       const food = req.body;
-      const query = {_id: new ObjectId(id)};
-      const update = {$set: food};
+      const query = { _id: new ObjectId(id) };
+      const update = { $set: food };
       const result = await foodsCollection.updateOne(query, update);
       res.send(result);
-    })
-      
-
-
-
+    });
 
     // Connect the client to the server	(optional starting in v4.7)
     // await client.connect();
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
-    console.log("Pinged your deployment. You successfully connected to MongoDB!");
+    console.log(
+      "Pinged your deployment. You successfully connected to MongoDB!"
+    );
   } finally {
     // Ensures that the client will close when you finish/error
     // await client.close();
@@ -155,16 +194,11 @@ async function run() {
 }
 run().catch(console.dir);
 
-
-
-
-
-
-// server side data 
-app.get('/', (req, res) => {
-    res.send('A Restaurant API server is building here.................')
-})
+// server side data
+app.get("/", (req, res) => {
+  res.send("A Restaurant API server is building here.................");
+});
 
 app.listen(port, () => {
-    console.log(`Example app listening at http://localhost:${port}`)
-})
+  console.log(`Example app listening at http://localhost:${port}`);
+});
