@@ -12,7 +12,10 @@ app.use(cookieParser());
 app.use(express.json());
 app.use(
   cors({
-    origin: ["http://localhost:5174"],
+    origin: ["http://localhost:5174",
+      "https://taste-odyssey.web.app",
+      "https://taste-odyssey.firebaseapp.com"
+    ],
     credentials: true,
     optionalSuccessStatus: 200,
   })
@@ -43,6 +46,7 @@ const verifyToken = (req, res, next) => {
 };
 
 async function run() {
+
   try {
     const db = client.db("taste-odyssey-db");
     const foodsCollection = db.collection("foods");
@@ -131,6 +135,7 @@ async function run() {
       res.send(result);
     });
 
+
     //food count for pagination
     app.get("/food-count", async (req, res) => {
       const filter = req.query.filter;
@@ -200,7 +205,7 @@ async function run() {
     // Connect the client to the server	(optional starting in v4.7)
     // await client.connect();
     // Send a ping to confirm a successful connection
-    await client.db("admin").command({ ping: 1 });
+    // await client.db("admin").command({ ping: 1 });
     console.log(
       "Pinged your deployment. You successfully connected to MongoDB!"
     );
